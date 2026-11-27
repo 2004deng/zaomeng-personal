@@ -1,5 +1,6 @@
 package top.wkbin.zaomeng.feature.importbook
 
+import top.wkbin.zaomeng.platform.ZipReadLimits
 import top.wkbin.zaomeng.platform.decodeGb18030Strict
 import top.wkbin.zaomeng.platform.readZipFileEntries
 
@@ -38,8 +39,12 @@ fun textStatistics(text: String): TextStatistics {
 object ImportDocumentLoader {
     internal const val MAX_NOVEL_BYTES = 24 * 1024 * 1024
     internal const val MAX_PACKAGE_BYTES = 64 * 1024 * 1024
-    private const val MAX_EPUB_UNCOMPRESSED_BYTES = 48 * 1024 * 1024
+    private const val MAX_EPUB_UNCOMPRESSED_BYTES = 48L * 1024 * 1024
     private const val MAX_EPUB_CONTENT_ENTRIES = 2_000
+    private const val MAX_EPUB_ARCHIVE_ENTRIES = 4_096
+    private const val MAX_EPUB_CONTAINER_BYTES = 256L * 1024
+    private const val MAX_EPUB_PACKAGE_BYTES = 4L * 1024 * 1024
+    private const val EPUB_CONTAINER_PATH = "META-INF/container.xml"
 
     fun prepareImportDocument(
         displayName: String,
@@ -194,24 +199,34 @@ object ImportDocumentLoader {
     }
 
     private fun extractEpubText(bytes: ByteArray): String {
-        val sections = mutableListOf<String>()
-        var totalUncompressed = 0
-        for (entry in readZipFileEntries(bytes)) {
-            val name = entry.name.lowercase()
-            if (name.endsWith(".xhtml") || name.endsWith(".html") || name.endsWith(".htm")) {
-                if (sections.size >= MAX_EPUB_CONTENT_ENTRIES) {
-                    throw IllegalArgumentException("EPUB 章节过多，无法安全导入。")
-                }
-                totalUncompressed += entry.content.size
-                if (totalUncompressed > MAX_EPUB_UNCOMPRESSED_BYTES) {
-                    throw IllegalArgumentException("EPUB 解压后的正文过大，当前最多支持 48 MB。")
-                }
-                val text = htmlToText(entry.content.decodeToString())
-                if (text.isNotBlank()) sections += text
-            }
-        }
-        return sections.joinToString("\n\n").trim()
+        val container = readSelectedEpubEntries(bytes, setOf(EPUB_CONTAINER_PATH), MAX_EPUB_CONTAINER_BYTES)
+        val containerXml = container[EPUB_CONTAINER_PATH]?.decodeToString()
+            ?: throw IllegalArgumentException("这不是有效的 EPUB：缺少 META-INF/container.xml。")
+        val opfPath = epubPackagePath(containerXml)
+        val packageDocument = readSelectedEpubEntries(bytes, setOf(opfPath), MAX_EPUB_PACKAGE_BYTES)[opfPath]
+            ?: throw IllegalArgumentException("这不是有效的 EPUB：package 文档缺失。")
+        val documents = epubSpinePaths(packageDocument.decodeToString(), opfPath)
+        require(documents.size <= MAX_EPUB_CONTENT_ENTRIES) { "EPUB 章节过多，无法安全导入。" }
+        val sections = readSelectedEpubEntries(bytes, documents.toSet(), MAX_EPUB_UNCOMPRESSED_BYTES)
+        require(sections.size == documents.size) { "EPUB 的 package 文档引用了不存在的正文文件。" }
+        return documents.mapNotNull { path ->
+            sections[path]?.let { htmlToText(it.decodeToString()).takeIf(String::isNotBlank) }
+        }.joinToString("\n\n").trim()
     }
+
+    private fun readSelectedEpubEntries(
+        bytes: ByteArray,
+        names: Set<String>,
+        maxTotalBytes: Long,
+    ): Map<String, ByteArray> = readZipFileEntries(
+        bytes = bytes,
+        limits = ZipReadLimits(
+            maxEntries = MAX_EPUB_ARCHIVE_ENTRIES,
+            maxEntryBytes = MAX_EPUB_UNCOMPRESSED_BYTES,
+            maxTotalBytes = maxTotalBytes,
+        ),
+        includeEntry = { it in names },
+    ).associate { it.name to it.content }
 
     private fun htmlToText(value: String): String = value
         .replace(Regex("(?is)<(script|style)[^>]*>.*?</\\1>"), " ")

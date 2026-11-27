@@ -30,8 +30,8 @@ class KtorDialogueClient(
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    /** 流式回复（SSE）：走平台 HTTP 流式读取（Android/桌面均为 OkHttp），返回 okio.BufferedSource 供逐行解析。 */
-    suspend fun streamReply(runId: String, sessionId: String, payload: DialogueReplyRequest): okio.BufferedSource {
+    /** 流式回复（SSE）：平台实现按行增量读取，并在调用方取消时关闭底层请求。 */
+    suspend fun streamReply(runId: String, sessionId: String, payload: DialogueReplyRequest): StreamingHttpResponse {
         val endpoint = endpointProvider.requireKtorEndpoint()
         val url = "${endpoint.baseUrl.trimEnd('/')}/api/web/runs/$runId/dialogue/sessions/$sessionId/reply/stream"
         val requestBody = http.json.encodeToString(DialogueReplyRequest.serializer(), payload)

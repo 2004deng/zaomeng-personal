@@ -5,7 +5,6 @@ import androidx.room3.Database
 import androidx.room3.RoomDatabase
 import androidx.room3.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import kotlinx.coroutines.Dispatchers
 import top.wkbin.zaomeng.platform.platformIoDispatcher
 
 /**
@@ -23,7 +22,7 @@ import top.wkbin.zaomeng.platform.platformIoDispatcher
         CardEntity::class,
         PersonaEntity::class,
     ],
-    version = 2,
+    version = 3,
 )
 @ConstructedBy(ZaomengDatabaseConstructor::class)
 abstract class ZaomengDatabase : RoomDatabase() {
@@ -41,7 +40,8 @@ expect object ZaomengDatabaseConstructor : RoomDatabaseConstructor<ZaomengDataba
 /** 通用构建：捆绑 SQLite 驱动 + IO 调度器（平台差异只剩 Builder 的路径/Context）。 */
 fun buildZaomengDatabase(builder: RoomDatabase.Builder<ZaomengDatabase>): ZaomengDatabase =
     builder
-        // v1（documents-only）已确认可以丢弃，升级到 v2 时允许直接重建。
+        .addMigrations(MIGRATION_2_3)
+        // v1（documents-only）已确认可以丢弃，升级到当前版本时允许直接重建。
         // v2 起必须显式提供 Migration：漏写会在打开数据库时抛异常暴露问题，而不是静默清空
         // 所有用户数据。不要改回全局 fallbackToDestructiveMigration(dropAllTables = true)。
         .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1)

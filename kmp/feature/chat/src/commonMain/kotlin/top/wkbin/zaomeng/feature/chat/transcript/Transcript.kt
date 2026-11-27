@@ -213,7 +213,8 @@ internal fun Transcript(
     val visibleCount = transcript.size + streamingReplies.size +
             (if (sending && modelReasoning.isNotBlank()) 1 else 0) +
             if (pendingUserMessage == null) 0 else 1
-    val lastContentIndex = (visibleCount - 1).coerceAtLeast(0)
+    val showHistoryHeader = hasMoreHistory || loadingEarlier
+    val lastContentIndex = (visibleCount + (if (showHistoryHeader) 1 else 0) - 1).coerceAtLeast(0)
     val contentRevision = (transcript.lastOrNull()?.message?.hashCode() ?: 0) * 31 +
             streamingReplies.sumOf { it.text.length + it.innerThought.length } * 17 +
             modelReasoning.length * 13 +
@@ -221,7 +222,7 @@ internal fun Transcript(
     val firstKey = transcript.firstOrNull()?.transcriptKey().orEmpty()
     val onlyOpening = readingLayout && session.cardGreetingIndex != null && session.transcriptCount <= 1 &&
         transcript.size == 1 && visibleCount == 1 && !sending
-    LaunchedEffect(visibleCount, contentRevision, sending, firstKey, onlyOpening) {
+    LaunchedEffect(visibleCount, lastContentIndex, contentRevision, sending, firstKey, onlyOpening) {
         // 向上加载历史会整体前插：首条 key 变化且数量增加视为 prepend，不纳入“新消息”计数
         val prepended = firstKey.isNotBlank() && firstKey != previousFirstKey &&
             transcript.size != previousVisibleCount
@@ -257,7 +258,7 @@ internal fun Transcript(
                 },
             ),
         ) {
-            if (hasMoreHistory || loadingEarlier) {
+            if (showHistoryHeader) {
                 item(key = "load-earlier") {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),

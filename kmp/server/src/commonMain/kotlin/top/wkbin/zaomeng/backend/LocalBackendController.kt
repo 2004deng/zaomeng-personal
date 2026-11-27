@@ -50,7 +50,7 @@ class LocalBackendController(
     private val serverPlatform: ServerPlatform,
     /** 0 = 随机端口（默认，避免固定端口被占用/多实例冲突）。 */
     private val port: Int = 0,
-    private val token: String = "dev-token",
+    private val token: String = "",
 ) : BackendController {
     /**
      * 实际生效的鉴权 token。
@@ -165,6 +165,6 @@ class LocalBackendController(
 
     private companion object {
         /** 旧版本写死的默认值：视为未配置，改用随机 token。 */
-        val LEGACY_INSECURE_TOKENS = setOf("dev-token", "desktop-dev-token")
+        val LEGACY_INSECURE_TOKENS = setOf("dev-token", "desktop-dev-token", "android-dev-token")
     }
 }

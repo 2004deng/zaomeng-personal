@@ -46,8 +46,8 @@ interface DomainDao {
     @Query("SELECT COUNT(*) FROM sessions WHERE runId = :runId")
     suspend fun sessionCountOf(runId: String): Int
 
-    @Query("DELETE FROM sessions WHERE sessionId = :sessionId")
-    suspend fun deleteSession(sessionId: String)
+    @Query("DELETE FROM sessions WHERE runId = :runId AND sessionId = :sessionId")
+    suspend fun deleteSession(runId: String, sessionId: String)
 
     @Query("DELETE FROM sessions WHERE runId = :runId")
     suspend fun deleteSessionsOf(runId: String)
@@ -102,7 +102,7 @@ interface DomainDao {
 
     @Transaction
     suspend fun deleteSessionCascade(runId: String, sessionId: String) {
-        deleteSession(sessionId)
+        deleteSession(runId, sessionId)
         deleteMessagesOf(runId, sessionId)
     }
 

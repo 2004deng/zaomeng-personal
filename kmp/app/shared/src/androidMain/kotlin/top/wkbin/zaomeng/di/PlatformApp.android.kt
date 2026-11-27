@@ -18,7 +18,6 @@ class AndroidAppPlatform(context: Context) : AppPlatform {
     private val localBackendController = LocalBackendController(
         serverPlatform = serverPlatform,
         port = 0,
-        token = BACKEND_TOKEN,
     )
 
     override val backendController = localBackendController
@@ -36,8 +35,4 @@ class AndroidAppPlatform(context: Context) : AppPlatform {
     override val distillationForeground = AndroidDistillationForeground(appContext)
 
     override val novelConversionForeground = AndroidNovelConversionForeground(appContext)
-
-    private companion object {
-        const val BACKEND_TOKEN = "android-dev-token"
-    }
 }

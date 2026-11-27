@@ -44,6 +44,30 @@ class SceneCardSwitchContractTest {
     }
 
     @Test
+    fun `saved scene cards round trip through switching by id`() {
+        withSession { storage, service ->
+            val fields = buildJsonObject {
+                put("title", "江边渡口")
+                put("location", "渡船")
+                put("atmosphere", "风急浪高")
+                put("opening_situation", "两人同船")
+                put("scene_drive", "坦诚来意")
+            }
+            val saved = CardsManagementService(storage).save("scene", "", fields)
+            val cardId = saved.getValue("card_id").jsonPrimitive.content
+            val switched = service.switchScene(
+                "run-1", "sess-1", cardId, JsonObject(emptyMap()), "", false,
+            )
+            val actual = switched.getValue("scene_card").jsonObject.getValue("fields").jsonObject
+
+            fields.forEach { (key, value) -> assertEquals(value, actual[key], "Missing field: $key") }
+            assertEquals(cardId, actual.getValue("scene_card_id").jsonPrimitive.content)
+            assertEquals("江边渡口", switched.getValue("scene_card").jsonObject
+                .getValue("preview").jsonObject.getValue("title").jsonPrimitive.content)
+        }
+    }
+
+    @Test
     fun `missing card id is rejected`() {
         withSession { _, service ->
             val error = assertFailsWith<IllegalArgumentException> {

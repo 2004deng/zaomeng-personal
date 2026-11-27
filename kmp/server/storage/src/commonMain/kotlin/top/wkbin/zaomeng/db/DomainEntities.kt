@@ -25,13 +25,14 @@ data class RunEntity(
 
 @Entity(
     tableName = "sessions",
+    primaryKeys = ["runId", "sessionId"],
     indices = [
         Index(value = ["runId"]),
         Index(value = ["updatedAtMillis"]),
     ],
 )
 data class SessionEntity(
-    @PrimaryKey val sessionId: String,
+    val sessionId: String,
     val runId: String,
     val title: String,
     val mode: String,

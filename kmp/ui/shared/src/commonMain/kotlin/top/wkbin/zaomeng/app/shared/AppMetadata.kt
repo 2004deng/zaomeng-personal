@@ -2,7 +2,7 @@ package top.wkbin.zaomeng.app.shared
 
 /** 跨平台应用元数据（替代 Android BuildConfig，三端一致）。 */
 object AppMetadata {
-    const val VERSION_NAME = "2.1.2-personal"
-    const val VERSION_CODE = 13
+    const val VERSION_NAME = "2.1.3-personal"
+    const val VERSION_CODE = 14
     const val BUILD_TIME_TEXT = "2026-11-27"
 }

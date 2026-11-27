@@ -1013,7 +1013,8 @@ class DialogueAdvancedService(
             val card = runCatching {
                 json.parseToJsonElement(storage.readText(cardFile)).jsonObject
             }.getOrElse { throw IllegalArgumentException("所选场景卡不存在。") }
-            val fields = card["fields"]?.jsonObject ?: JsonObject(emptyMap())
+            // 卡片数据文件保存平铺字段；兼容早期导入的 fields 包装格式。
+            val fields = (card["fields"] as? JsonObject) ?: card
             // 显式传入的 scene_profile 优先级高于卡文件，并回写 card_id（对齐 Python）。
             buildJsonObject {
                 fields.forEach { (key, value) -> put(key, value) }

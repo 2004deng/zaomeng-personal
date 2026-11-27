@@ -13,17 +13,10 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.readAvailable
-import kotlinx.coroutines.runBlocking
-import okio.Buffer
-import okio.BufferedSource
-import okio.Source
-import okio.Timeout
-import okio.buffer
+import io.ktor.utils.io.readUTF8Line
 
 /**
- * iOS SSE 流式读取：Darwin 引擎（NSURLSession delegate）支持分块下发，
- * 用 preparePost + bodyAsChannel 拿 ByteReadChannel，再桥接成 okio.BufferedSource。
+ * iOS SSE streaming uses Darwin's suspendable response channel directly.
  */
 private val darwinStreamingClient: HttpClient by lazy {
     HttpClient(Darwin) {
@@ -36,44 +29,30 @@ private val darwinStreamingClient: HttpClient by lazy {
     }
 }
 
-actual fun openStreamingResponse(url: String, jsonBody: String, token: String): BufferedSource {
-    val response = runBlocking {
-        darwinStreamingClient.preparePost(url) {
-            contentType(ContentType.Application.Json)
-            setBody(jsonBody)
-            header(HttpHeaders.Authorization, "Bearer $token")
-        }.execute()
-    }
+actual suspend fun openStreamingResponse(
+    url: String,
+    jsonBody: String,
+    token: String,
+): StreamingHttpResponse {
+    val response = darwinStreamingClient.preparePost(url) {
+        contentType(ContentType.Application.Json)
+        setBody(jsonBody)
+        header(HttpHeaders.Authorization, "Bearer $token")
+    }.execute()
     if (!response.status.isSuccess()) {
-        val body = runBlocking { response.bodyAsText() }
         throw StreamingHttpException(
             response.status.value,
             "Streaming request failed: ${response.status}",
-            body,
+            response.bodyAsText(),
         )
     }
-    val channel = runBlocking { response.bodyAsChannel() }
-    return ByteReadChannelSource(channel).buffer()
+    return DarwinStreamingHttpResponse(response.bodyAsChannel())
 }
 
-/** 把 Ktor 的 ByteReadChannel 桥接为 okio.Source（阻塞读取，调用方应在后台线程使用）。 */
-private class ByteReadChannelSource(
+private class DarwinStreamingHttpResponse(
     private val channel: ByteReadChannel,
-) : Source {
-    override fun read(sink: Buffer, byteCount: Long): Long {
-        if (byteCount == 0L) return 0L
-        val size = minOf(byteCount, 8192L).toInt()
-        val bytes = ByteArray(size)
-        // readAvailable 会挂起到有数据或结束为止；-1 表示流结束，0 表示本次没读到内容。
-        val read = runBlocking { channel.readAvailable(bytes, 0, size) }
-        if (read < 0) return -1L
-        if (read == 0) return 0L
-        sink.write(bytes, 0, read)
-        return read.toLong()
-    }
-
-    /** 阻塞式读取，没有超时语义（由外层 HttpTimeout 管）。 */
-    override fun timeout(): Timeout = Timeout.NONE
+) : StreamingHttpResponse {
+    override suspend fun readUtf8Line(): String? = channel.readUTF8Line()
 
     override fun close() {
         channel.cancel(null)

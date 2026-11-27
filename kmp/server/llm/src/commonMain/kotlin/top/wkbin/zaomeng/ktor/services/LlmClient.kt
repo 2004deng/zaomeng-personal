@@ -529,7 +529,7 @@ class LlmClient(
                 streamSupported = true
                 while (true) {
                     val data = sseData(response.readUtf8Line() ?: break) ?: continue
-                    if (data == "[DONE]") continue
+                    if (data == "[DONE]") break
                     chunkSizes += data.encodeToByteArray().size
                     val chunk = runCatching { json.decodeFromString<StreamChunk>(data) }.getOrNull() ?: continue
                     chunk.choices.firstOrNull()?.delta?.content?.takeIf(String::isNotEmpty)?.let { delta ->
@@ -775,7 +775,7 @@ class LlmClient(
             var responseModel = resolvedModel
             while (true) {
                 val data = sseData(response.readUtf8Line() ?: break) ?: continue
-                if (data == "[DONE]") continue
+                if (data == "[DONE]") break
                 consumeDecodedSsePayload(
                     data = data,
                     decode = { json.decodeFromString<StreamChunk>(it) },
@@ -875,7 +875,7 @@ class LlmClient(
             }
             while (true) {
                 val data = sseData(response.readUtf8Line() ?: break) ?: continue
-                if (data == "[DONE]") continue
+                if (data == "[DONE]") break
                 consumeDecodedSsePayload(
                     data = data,
                     decode = { json.decodeFromString<StreamChunk>(it) },

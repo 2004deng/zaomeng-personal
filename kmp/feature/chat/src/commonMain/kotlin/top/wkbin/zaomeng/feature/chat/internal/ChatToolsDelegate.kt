@@ -67,6 +67,7 @@ internal class ChatToolsDelegate(
                 it.copy(
                     session = it.session?.copy(
                         pluginEnhancerStates = session.pluginEnhancerStates,
+                        updatedAt = session.updatedAt,
                     ) ?: session,
                     includeInnerThoughts = if (
                         enhancer.stateKey == INNER_THOUGHTS_ENHANCER_KEY
@@ -581,28 +582,11 @@ internal class ChatToolsDelegate(
         }
     }
 
+    // 没有与本次工具操作关联的回执时，其他修改推进 updated_at 不能证明操作成功。
+    // 保留原始错误；用户仍可刷新会话核对服务端状态。
     private suspend fun ToolRequest.sessionMutation(
         operation: suspend () -> DialogueSessionDto,
-    ): DialogueSessionDto = try {
-        operation()
-    } catch (cancelled: CancellationException) {
-        throw cancelled
-    } catch (error: Throwable) {
-        val recovered = try {
-            sessions.getSession(runId, sessionId, includeTranscript = true)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Throwable) {
-            null
-        }
-        // 不能用"与操作前快照不同"判定成功：别的客户端/后台任务也会改动会话。
-        // 只有服务端 updated_at 明确前进，才认为本次变更真的落库；否则保留原始错误。
-        val previousUpdatedAt = snapshot.session?.updatedAt ?: throw error
-        if (recovered == null || recovered.updatedAt.isBlank() || recovered.updatedAt <= previousUpdatedAt) {
-            throw error
-        }
-        recovered
-    }
+    ): DialogueSessionDto = operation()
 
     private suspend fun ToolRequest.branchMutation(
         originKind: String,
