@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - main
-  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  android:
+  apk:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,24 +26,62 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # 先出包：个人自用最关心的是能装上的 APK，测试失败不应该挡住产物。
-      - name: Build debug APK
+      # 用仓库 secrets 里的个人 keystore 签名：签名固定，后续版本才能覆盖安装。
+      - name: Restore signing keystore
+        working-directory: kmp
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > personal-release.jks
+          {
+            echo "storeFile=personal-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Build signed release APK
         working-directory: kmp
         shell: bash
         run: |
-          ./gradlew :app:androidApp:assembleDebug \
-            --no-daemon --stacktrace --console=plain 2>&1 | tee /tmp/gradle-android.log || {
-            grep -E 'What went wrong|Caused by:|FAILURE:|Could not|error:|> Task .* FAILED' /tmp/gradle-android.log | head -40 || true
-            tail -60 /tmp/gradle-android.log || true
+          ./gradlew :app:androidApp:assembleRelease \
+            --no-daemon --stacktrace --console=plain 2>&1 | tee /tmp/gradle-release.log || {
+            grep -E 'What went wrong|Caused by:|FAILURE:|Could not|error:|> Task .* FAILED' /tmp/gradle-release.log | head -40 || true
+            tail -60 /tmp/gradle-release.log || true
             exit 1
           }
 
-      - name: Upload debug APK
+      - name: Verify APK signature and identity
+        working-directory: kmp
+        shell: bash
+        run: |
+          APK=app/androidApp/build/outputs/apk/release/app-release.apk
+          ls -la "$APK"
+          BT=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs "$APK"
+          "$BT/aapt2" dump badging "$APK" | head -6
+
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: zaomeng-debug-apk
-          path: kmp/app/androidApp/build/outputs/apk/debug/*.apk
+          name: zaomeng-release-apk
+          path: kmp/app/androidApp/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+      - name: Publish to release tag
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: 造梦 个人自用 APK（最新）
+          prerelease: true
+          body: |
+            由 GitHub Actions 自动构建并签名。
+            包名 com.deng2004.zaomeng，签名固定（个人 keystore），可直接覆盖升级。
+          files: kmp/app/androidApp/build/outputs/apk/release/app-release.apk
 
       - name: Run Android checks
         working-directory: kmp

@@ -25,12 +25,12 @@ android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "top.wkbin.zaomeng"
+        applicationId = "com.deng2004.zaomeng"
         minSdk = libs.versions.android.minSdk.get().toInt()
         //noinspection OldTargetApi
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         // 个人自用版：每次出包递增 versionCode 才能覆盖安装。
-        versionCode = 12
+        versionCode = 13
         versionName = "2.1.2-personal"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -67,7 +67,7 @@ android {
             )
         }
         debug {
-            applicationIdSuffix = ".test"
+            // 个人自用只装一个包：debug 也使用同一个 applicationId，避免 .test 变体。
             isMinifyEnabled = false
         }
     }
