@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.MyApplication" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- COUI 2.0 backgroundWithCard 浅色值，保证冷启动/转场与主题一致 -->
+        <item name="android:windowBackground">#FFF0F1F2</item>
+    </style>
+</resources>

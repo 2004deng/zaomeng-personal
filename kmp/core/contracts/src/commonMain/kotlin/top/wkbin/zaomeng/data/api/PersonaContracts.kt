@@ -1,0 +1,222 @@
+package top.wkbin.zaomeng.data.api
+
+import okio.Path
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonEncoder
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+
+@Serializable
+data class RelationDetailsDto(
+    @SerialName("run_id") val runId: String = "",
+    @SerialName("novel_id") val novelId: String = "",
+    @SerialName("relation_count") val relationCount: Int = 0,
+    @SerialName("conflict_count") val conflictCount: Int = 0,
+    val conflicts: List<RelationConflictDto> = emptyList(),
+    val items: List<RelationItemDto> = emptyList(),
+)
+
+@Serializable
+data class RelationItemDto(
+    @SerialName("pair_key") val pairKey: String = "",
+    val characters: List<String> = emptyList(),
+    val trust: Int = 0,
+    val affection: Int = 0,
+    val hostility: Int = 0,
+    val ambiguity: Int = 3,
+    @SerialName("relationship_type") val relationshipType: String = "",
+    @SerialName("relation_change") val relationChange: String = "",
+    @SerialName("conflict_point") val conflictPoint: String = "",
+    @SerialName("typical_interaction") val typicalInteraction: String = "",
+    @SerialName("evidence_lines") val evidenceLines: List<String> = emptyList(),
+)
+
+@Serializable
+data class RelationConflictDto(
+    @SerialName("pair_key") val pairKey: String = "",
+    val tags: List<String> = emptyList(),
+)
+
+@Serializable
+data class UpdateRelationDetailRequest(
+    val trust: Int,
+    val affection: Int,
+    val hostility: Int,
+    val ambiguity: Int,
+    @SerialName("relationship_type") val relationshipType: String = "",
+    @SerialName("relation_change") val relationChange: String = "",
+    @SerialName("conflict_point") val conflictPoint: String = "",
+    @SerialName("typical_interaction") val typicalInteraction: String = "",
+)
+
+@Serializable
+data class ReusableCardsResponse(val items: List<ReusableCardDto> = emptyList())
+
+@Serializable
+data class ReusableCardDto(
+    @SerialName("card_id") val cardId: String = "",
+    val fields: JsonObject = JsonObject(emptyMap()),
+    val preview: JsonObject = JsonObject(emptyMap()),
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("updated_at") val updatedAt: String = "",
+)
+
+@Serializable
+data class RecommendSceneCardsRequest(
+    val mode: String = "observe",
+    val participants: List<String> = emptyList(),
+)
+
+@Serializable
+data class PersonaReviewDto(
+    @SerialName("run_id") val runId: String = "",
+    val character: String = "",
+    @SerialName("editable_profile_path") val editableProfilePath: String = "",
+    @SerialName("generated_profile_path") val generatedProfilePath: String = "",
+    val fields: Map<String, String> = emptyMap(),
+    @SerialName("card_fields") val cardFields: Map<String, String>? = null,
+    @SerialName("card_metadata") val cardMetadata: SillyTavernCardMetadataDto? = null,
+)
+
+@Serializable
+data class SillyTavernCardMetadataDto(
+    val creator: String = "",
+    @SerialName("creator_notes") val creatorNotes: String = "",
+    @SerialName("character_version") val characterVersion: String = "",
+    val tags: List<String> = emptyList(),
+    @SerialName("creator_notes_truncated") val creatorNotesTruncated: Boolean = false,
+    @SerialName("tags_truncated") val tagsTruncated: Boolean = false,
+    val revision: String = "",
+    @SerialName("character_note") val characterNote: SillyTavernCharacterNoteDto =
+        SillyTavernCharacterNoteDto("", 4, WorldBookInjectionRole.System),
+    @SerialName("character_note_truncated") val characterNoteTruncated: Boolean = false,
+)
+
+@Serializable
+data class SillyTavernCharacterNoteDto(
+    val text: String,
+    val depth: Int,
+    val role: WorldBookInjectionRole,
+)
+
+const val CARD_CHARACTER_NOTE_LIMIT = 4000
+const val CARD_CHARACTER_NOTE_MAX_DEPTH = 10_000
+
+const val CARD_METADATA_LABEL_LIMIT = 120
+const val CARD_CREATOR_NOTES_LIMIT = 16_000
+const val CARD_TAG_LIMIT = 32
+const val CARD_TAG_CHAR_LIMIT = 64
+
+@Serializable
+data class UpdateSillyTavernCardMetadataRequest(
+    val revision: String,
+    val creator: String? = null,
+    @SerialName("creator_notes") val creatorNotes: String? = null,
+    @SerialName("character_version") val characterVersion: String? = null,
+    val tags: List<String>? = null,
+    @SerialName("character_note") val characterNote: SillyTavernCharacterNoteDto? = null,
+)
+
+@Serializable
+data class PersonaQualityReportDto(
+    val character: String = "",
+    val score: Int = 0,
+    @SerialName("max_score") val maxScore: Int = 100,
+    val grade: String = "",
+    val verdict: String = "",
+    val issues: List<PersonaIssueDto> = emptyList(),
+    @SerialName("evidence_coverage") val evidenceCoverage: Int = 0,
+    val confidence: Int = 0,
+    @SerialName("pending_repair_count") val pendingRepairCount: Int = 0,
+    val applicable: Boolean = true,
+)
+
+@Serializable
+data class PersonaIssueDto(
+    val severity: String = "",
+    val fields: List<String> = emptyList(),
+    val message: String = "",
+    val suggestion: String = "",
+)
+
+@Serializable
+data class PersonaRepairProposalDto(
+    val character: String = "",
+    val status: String = "not_available",
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("evidence_coverage") val evidenceCoverage: Int = 0,
+    val confidence: Int = 0,
+    val issues: List<PersonaIssueDto> = emptyList(),
+    val changes: List<PersonaRepairChangeDto> = emptyList(),
+)
+
+@Serializable
+data class PersonaRepairChangeDto(
+    val field: String = "",
+    val before: String = "",
+    val after: String = "",
+    val reason: String = "",
+    val confidence: Int = 0,
+    val evidence: List<PersonaEvidenceDto> = emptyList(),
+)
+
+@Serializable
+data class PersonaEvidenceDto(
+    val id: String = "",
+    val title: String = "",
+    val excerpt: String = "",
+    @SerialName("start_char") val startChar: Int = 0,
+    @SerialName("end_char") val endChar: Int = 0,
+)
+
+@Serializable
+data class SuggestPersonaFieldRequest(val field: String)
+
+@Serializable
+data class SuggestPersonaFieldResponse(
+    val field: String = "",
+    val label: String = "",
+    val status: String = "",
+    val value: String = "",
+    val message: String = "",
+    val reason: String = "",
+)
+
+@Serializable
+data class PersonaEvolutionProposalDto(
+    val character: String = "",
+    val status: String = "available",
+    @SerialName("evolution_summary") val evolutionSummary: String = "",
+    val changes: List<PersonaEvolutionChangeDto> = emptyList(),
+)
+
+@Serializable
+data class PersonaEvolutionChangeDto(
+    val field: String = "",
+    @SerialName("field_label") val fieldLabel: String = "",
+    @SerialName("current_value") val currentValue: String = "",
+    @SerialName("proposed_value") val proposedValue: String = "",
+    val reason: String = "",
+    val category: String = "general",
+)
+
+@Serializable
+data class ApplyPersonaEvolutionRequest(
+    val changes: List<PersonaEvolutionChangeDto> = emptyList(),
+)
+
+@Serializable
+data class GenerateEvolutionProposalRequest(
+    @SerialName("session_id") val sessionId: String = "",
+    val recap: StoryRecapDto? = null,
+)
