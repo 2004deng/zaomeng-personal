@@ -33,16 +33,18 @@ flowchart LR
 | `data/remote` | Ktor API client、SSE、在线书库下载、更新检查、流式文件读写和偏好存储 |
 | `data/repository` | 应用 Repository 实现与 domain Gateway 适配 |
 | `ui/shared` | 主题、跨平台 UI 辅助、平台能力 actual 与共享展示模型 |
-| `feature/*` | 按业务拆分的 Screen/ViewModel 模块（bookshelf、chapters、sessions、persona、chat 等） |
+| `feature/books` | 书卷域 Screen/ViewModel：书架、在线书库、导入、继续蒸馏、原文知识、书卷详情 |
+| `feature/dialogue` | 对话域：聊天流式交互与会话列表/分页 |
+| `feature/persona` | 人物域：人物档案、人物关系、可复用卡片 |
+| `feature/settings` | 设置域：模型与应用设置、插件工坊 |
+| `feature/studio` | 创作域：章节、剧情回顾、时间线、跨作品共演 |
 | `app/androidApp` | Android 入口、权限、签名与 APK 打包 |
-| `app/desktopApp` | Desktop 入口与桌面打包 |
 | `server` | 本地 Ktor 聚合模块：路由、业务服务、插件宿主与平台入口，组合 storage/llm/http |
 | `server/storage` | Room、StorageService、PathSafety 与领域模型 |
 | `server/llm` | LlmClient、模型密钥、提示词构建与响应解析 |
 | `server/http` | HTTP 插件、SSE 编码器与基础路由 |
 | `plugins-api` | 插件稳定契约 |
 | `builtin-plugins` | 官方内置插件 |
-| `iosApp` | iOS Xcode 宿主工程 |
 
 共享业务尽量位于 `commonMain`。系统 API、HTTP engine、日志、数据库 builder、ZIP 和平台安全存储等能力通过平台接口隔离。
 

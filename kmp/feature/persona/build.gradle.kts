@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// 人物域：人物档案、人物关系与可复用卡片。
 kotlin {
     jvm()
 
@@ -26,11 +27,13 @@ kotlin {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_21)
         }
+        withHostTest {}
     }
 
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:contracts"))
+            implementation(project(":core:runtime"))
             implementation(project(":core:domain"))
             implementation(project(":data:repository"))
             implementation(project(":ui:shared"))

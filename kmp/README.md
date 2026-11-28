@@ -11,7 +11,11 @@ kmp/
 ├── app/shared/         # 导航、App、ViewModel/DI 装配与共享 Compose UI
 ├── core/{contracts,domain,runtime}
 ├── data/{remote,repository}
-├── feature/*           # 各业务 Screen/ViewModel
+├── feature/books/      # 书卷：书架、在线书库、导入、继续蒸馏、原文、详情
+├── feature/dialogue/   # 对话：聊天、会话列表
+├── feature/persona/    # 人物：档案、关系、卡片
+├── feature/settings/   # 设置：模型/应用设置、插件工坊
+├── feature/studio/     # 创作：章节、剧情回顾、时间线、共演
 ├── ui/shared/          # 主题与跨平台 UI 辅助
 ├── server/             # 内嵌 Ktor：路由 / 服务 / 插件（含 storage、llm、http 子模块）
 ├── plugins-api/、builtin-plugins/

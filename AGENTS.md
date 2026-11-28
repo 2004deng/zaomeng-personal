@@ -20,7 +20,11 @@
 - `kmp/data/remote`：Ktor API client、SSE、在线书库下载、流式文件读写与 DataStore 偏好存储。
 - `kmp/data/repository`：面向应用的 Repository 实现与 domain Gateway 适配。
 - `kmp/ui/shared`：主题、跨平台 UI 辅助与共享展示模型。
-- `kmp/feature/*`：按业务拆分的 Screen/ViewModel 模块。
+- `kmp/feature/books`：书卷域（书架、在线书库、导入、继续蒸馏、原文知识、书卷详情）。
+- `kmp/feature/dialogue`：对话域（聊天流式交互、会话列表与分页）。
+- `kmp/feature/persona`：人物域（人物档案、人物关系、可复用卡片）。
+- `kmp/feature/settings`：设置域（模型与应用设置、插件工坊）。
+- `kmp/feature/studio`：创作域（章节、剧情回顾、时间线、跨作品共演）。
 - `kmp/server`：内嵌 Ktor 聚合模块，保留路由、业务服务、插件宿主与平台入口。
 - `kmp/server/storage`：Room、StorageService、PathSafety 与领域模型。
 - `kmp/server/llm`：LlmClient、ModelApiKeyService、提示词构建与响应解析。

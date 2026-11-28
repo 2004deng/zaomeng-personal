@@ -8,8 +8,10 @@ plugins {
     alias(libs.plugins.android.kmp.library)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
+// 设置域：模型与应用设置、插件工坊。
 kotlin {
     jvm()
 
@@ -31,11 +33,12 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:contracts"))
+            implementation(project(":core:runtime"))
             implementation(project(":data:repository"))
             implementation(project(":ui:shared"))
-            api(libs.compose.lifecycle.viewmodel)
             implementation(libs.bundles.compose.ui)
             implementation(libs.compose.lifecycle.runtime)
+            api(libs.compose.lifecycle.viewmodel)
             implementation(libs.bundles.koin.compose)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
@@ -43,6 +46,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

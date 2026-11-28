@@ -39,9 +39,11 @@ app:* -> server -> core:contracts / core:runtime / plugins-api
 - 第十八批归位：`bookshelf`、`chapters`、`sessions`、`rundetail`、`persona` 独立成 `feature:*` 模块并随迁各自 commonTest；其中 persona 的 `PersonaScreen` / `PersonaViewModel` 迁入 `:feature:persona`，`app:shared` 改为依赖新模块并在 `SharedViewModelModule` 中引用；文档选择、头像裁剪、返回手势等平台辅助迁入 `ui:shared`。
 - 第十九批归位：`chat`、`importbook`、`redistill` 独立成 `feature:*` 模块并随迁测试；剪贴板、GB18030 解码与 ZIP 条目读取迁入 `ui:shared`，`feature:redistill` 复用 `feature:importbook` 的文档加载与文本统计。
 
+- 第二十批收口：17 个 `feature:*` 模块按业务域合并为 5 个——`books`（书架/书库/导入/继续蒸馏/原文/详情）、`dialogue`（聊天/会话）、`persona`（档案/关系/卡片）、`settings`（设置/插件工坊）、`studio`（章节/回顾/时间线/共演）；包路径与公开行为不变，仅合并 Gradle 模块与源码集。
+
 ## 后续批次
 
-1. **展示功能边界**：`library`、`settings`、`cards`、`relations`、`crossover`、`update`、`timeline`、`originalknowledge`、`storyrecap`、`bookshelf`、`chapters`、`sessions`、`rundetail`、`persona`、`chat`、`importbook`、`redistill` 均已独立为 `feature:*` 模块。
+1. **展示功能边界**：已收敛为 5 个域模块（见第二十批），后续新增页面优先放入对应域模块。
 
 ## 每批验收
 
