@@ -59,9 +59,22 @@ jobs:
         working-directory: kmp
         shell: bash
         run: |
-          APK=app/androidApp/build/outputs/apk/release/app-release.apk
+          # AGP 9 的产物名是 <模块名>-release.apk（本仓库为 androidApp-release.apk），
+          # 不再固定为 app-release.apk；这里按 glob 解析，避免改名一次就整条流水线失败。
+          APK=$(find app/androidApp/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)
+          if [ -z "$APK" ]; then
+            echo "release APK not found:"
+            ls -la app/androidApp/build/outputs/apk/release || true
+            exit 1
+          fi
+          echo "APK=$APK"
           ls -la "$APK"
-          BT=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -1)
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$SDK" ]; then
+            echo "Android SDK path is not set (ANDROID_SDK_ROOT/ANDROID_HOME)"
+            exit 1
+          fi
+          BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)
           "$BT/apksigner" verify --print-certs "$APK"
           "$BT/aapt2" dump badging "$APK" | head -6
 
@@ -81,7 +94,7 @@ jobs:
           body: |
             由 GitHub Actions 自动构建并签名。
             包名 com.deng2004.zaomeng，签名固定（个人 keystore），可直接覆盖升级。
-          files: kmp/app/androidApp/build/outputs/apk/release/app-release.apk
+          files: kmp/app/androidApp/build/outputs/apk/release/*.apk
 
       - name: Run Android checks
         working-directory: kmp

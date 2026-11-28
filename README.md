@@ -78,16 +78,16 @@ cd kmp
 
 产物：
 
-- `kmp/app/androidApp/build/outputs/apk/release/app-release.apk`
+- `kmp/app/androidApp/build/outputs/apk/release/androidApp-release.apk`（AGP 9 按模块名命名）
 - `kmp/app/androidApp/build/outputs/apk/debug/app-debug.apk`
 
 校验签名与内容：
 
 ```bash
 $ANDROID_SDK_ROOT/build-tools/<版本>/apksigner verify --print-certs \
-  kmp/app/androidApp/build/outputs/apk/release/app-release.apk
+  kmp/app/androidApp/build/outputs/apk/release/androidApp-release.apk
 $ANDROID_SDK_ROOT/build-tools/<版本>/aapt2 dump badging \
-  kmp/app/androidApp/build/outputs/apk/release/app-release.apk | head
+  kmp/app/androidApp/build/outputs/apk/release/androidApp-release.apk | head
 ```
 
 ## 测试
