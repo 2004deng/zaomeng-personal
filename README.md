@@ -14,7 +14,7 @@
 | `zaomeng-skill`、官网 `website/`、示例插件 | 有 | 已删除 |
 | 应用内更新 | 检查并下载作者 GitHub Release 的 APK | **已移除**（见下） |
 | 桌面 / iOS / Pages / 旧 Python CI | 有 | 已删除，只保留 Android CI |
-| 版本号 | `2.1.2` / code 11 | `2.1.5-personal` / code 16 |
+| 版本号 | `2.1.2` / code 11 | `2.1.4-personal` / code 15 |
 
 打包进 APK 的提示词资源在 `kmp/app/shared/src/commonMain/composeResources/files/prompts` 与
 `kmp/server/src/androidMain/assets`，两者仍需保持一致；仓库根的 `prompts/` 只是可编辑源目录。
