@@ -56,13 +56,21 @@ class RunRepositoryImpl(
     }
 
     override suspend fun discoverCharacters(filename: String, excerpt: String): List<String> = repositoryRequest {
-        ktorRunManagement.discoverCharacters(
-            DiscoverCharactersRequest(filename.take(240), excerpt),
-        ).characters
+        try {
+            ktorRunManagement.discoverCharacters(
+                DiscoverCharactersRequest(filename.take(240), excerpt),
+            ).characters
+        } catch (error: KtorSessionRequestException) {
+            throw discoveryRequestError(error)
+        }
     }
 
     override suspend fun discoverRunCharacters(runId: String): List<String> = repositoryRequest {
-        ktorRunManagement.discoverRunCharacters(runId).characters
+        try {
+            ktorRunManagement.discoverRunCharacters(runId).characters
+        } catch (error: KtorSessionRequestException) {
+            throw discoveryRequestError(error)
+        }
     }
 
     override suspend fun createNovel(
@@ -352,3 +360,10 @@ class RelationsRepositoryImpl(
         )
     }
 }
+
+/**
+ * 识别接口失败时把本地 Ktor 的原始响应体解析成可读文案。
+ * 不解析的话，界面会把 `{"error":"…"}` 整段 JSON 当成错误提示显示出来。
+ */
+internal fun discoveryRequestError(error: KtorSessionRequestException): ApiRequestException =
+    ApiRequestException(errorDetail(error.message, error.statusCode), error, error.statusCode)

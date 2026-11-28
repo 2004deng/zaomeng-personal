@@ -26,6 +26,7 @@ class KtorServiceGraph(platform: ServerPlatform) {
             temperature = 0.1,
             maxTokens = 1_200,
             requireJsonObject = true,
+            context = top.wkbin.zaomeng.ktor.services.LlmRequestContext(task = "character.discovery"),
         ).choices.firstOrNull()?.message?.content.orEmpty()
     }
     val worldMemory = WorldMemoryService(storage)

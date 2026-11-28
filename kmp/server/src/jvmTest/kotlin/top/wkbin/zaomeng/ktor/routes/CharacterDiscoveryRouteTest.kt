@@ -17,6 +17,8 @@ import okio.Path.Companion.toPath
 import top.wkbin.zaomeng.data.api.DiscoverCharactersRequest
 import top.wkbin.zaomeng.data.api.DiscoveredCharactersDto
 import top.wkbin.zaomeng.ktor.services.CharacterDiscoveryService
+import top.wkbin.zaomeng.ktor.services.ModelRequestException
+import top.wkbin.zaomeng.ktor.services.ModelRequestFailure
 import top.wkbin.zaomeng.ktor.services.RunManagementService
 import top.wkbin.zaomeng.ktor.services.RunPackageService
 import top.wkbin.zaomeng.ktor.services.StorageService
@@ -89,6 +91,50 @@ class CharacterDiscoveryRouteTest {
             assertTrue(malformed.bodyAsText().contains("格式"))
         } finally {
             directory.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `classified model failures return actionable status and message without leaking raw error`() {
+        val cases = listOf(
+            Triple(ModelRequestFailure.Timeout, HttpStatusCode.GatewayTimeout, "超时"),
+            Triple(ModelRequestFailure.Network, HttpStatusCode.BadGateway, "无法连接模型服务"),
+            Triple(ModelRequestFailure.ProviderUnavailable, HttpStatusCode.ServiceUnavailable, "暂时不可用"),
+            Triple(ModelRequestFailure.InvalidResponse, HttpStatusCode.BadGateway, "无法解析"),
+        )
+        cases.forEach { (failure, expectedStatus, expectedText) ->
+            testApplication {
+                val directory = createTempDirectory("character-discovery-failure")
+                try {
+                    val storage = StorageService(directory.toString().toPath())
+                    application {
+                        install(ContentNegotiation) { json() }
+                        routing {
+                            runManagementRoutes(
+                                RunManagementService(storage),
+                                RunPackageService(storage),
+                                CharacterDiscoveryService {
+                                    throw ModelRequestException(
+                                        failure,
+                                        "提示：$expectedText，请重试或手动填写。",
+                                        cause = IllegalStateException("raw-provider-body-500"),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                    val response = client.post("/api/web/runs/characters/discover") {
+                        contentType(ContentType.Application.Json)
+                        setBody(Json.encodeToString(DiscoverCharactersRequest("客栈.txt", "林晚走来。")))
+                    }
+                    assertEquals(expectedStatus, response.status, failure.name)
+                    val body = response.bodyAsText()
+                    assertTrue(body.contains(expectedText), "$failure -> $body")
+                    assertTrue(!body.contains("raw-provider-body-500"), "raw error leaked: $body")
+                } finally {
+                    directory.toFile().deleteRecursively()
+                }
+            }
         }
     }
 }

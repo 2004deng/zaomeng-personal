@@ -13,6 +13,7 @@ import top.wkbin.zaomeng.data.api.DiscoverCharactersRequest
 import top.wkbin.zaomeng.data.api.ImportRunPackageRequest
 import top.wkbin.zaomeng.data.api.SillyTavernPreviewRequest
 import top.wkbin.zaomeng.ktor.services.*
+import top.wkbin.zaomeng.platform.PlatformLog
 import top.wkbin.zaomeng.platform.platformIoDispatcher
 
 /**
@@ -129,6 +130,18 @@ private suspend fun discoverCharacters(
         call.respondError(HttpStatusCode.NotFound, error.message ?: "书卷不存在。")
     } catch (error: IllegalArgumentException) {
         call.respondError(HttpStatusCode.BadRequest, error.message ?: "小说正文无效。")
+    } catch (error: ModelRequestException) {
+        // 分类后的模型失败：给出可操作提示，同时把原因写进日志，避免只剩一句兜底文案。
+        val status = when (error.failure) {
+            ModelRequestFailure.Timeout -> HttpStatusCode.GatewayTimeout
+            ModelRequestFailure.ProviderUnavailable -> HttpStatusCode.ServiceUnavailable
+            ModelRequestFailure.Network, ModelRequestFailure.InvalidResponse -> HttpStatusCode.BadGateway
+        }
+        PlatformLog.w(
+            "CharacterDiscovery",
+            "discovery failed: ${error.failure}: ${error.message?.take(200)}",
+        )
+        call.respondError(status, error.message ?: "人物识别失败，请重试或手动填写。")
     } catch (error: IllegalStateException) {
         call.respondError(HttpStatusCode.BadGateway, error.message ?: "人物识别失败，请重试或手动填写。")
     } catch (_: Exception) {

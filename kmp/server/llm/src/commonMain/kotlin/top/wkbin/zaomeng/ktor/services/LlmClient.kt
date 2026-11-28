@@ -8,6 +8,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.serialization.JsonConvertException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -367,18 +368,18 @@ class LlmClient(
         )
 
         val diagnosticId = requestDiagnostics?.start(context, request, baseUrl)
+        val timeoutSeconds = profile["request_timeout_seconds"]?.toIntOrNull()
+            ?.takeIf { it in 1..MAX_MODEL_REQUEST_TIMEOUT_SECONDS }
+            ?: DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+        val timeoutMillis = timeoutSeconds * 1000L
         var usage: Usage? = null
         var status = "failed"
         try {
             return retryWithBackoff(maxRetries = DEFAULT_MAX_RETRIES) {
             val response: HttpResponse = httpClient.post("$baseUrl/chat/completions") {
                 timeout {
-                    val seconds = profile["request_timeout_seconds"]?.toIntOrNull()
-                        ?.takeIf { it in 1..MAX_MODEL_REQUEST_TIMEOUT_SECONDS }
-                        ?: DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
-                    val millis = seconds * 1000L
-                    requestTimeoutMillis = millis
-                    socketTimeoutMillis = millis
+                    requestTimeoutMillis = timeoutMillis
+                    socketTimeoutMillis = timeoutMillis
                 }
                 contentType(ContentType.Application.Json)
                 header("Authorization", "Bearer $apiKey")
@@ -406,6 +407,34 @@ class LlmClient(
                 usage = result.usage
                 status = "completed"
             }
+        } catch (error: HttpRequestTimeoutException) {
+            PlatformLog.w(TAG, "chatCompletion timeout after ${timeoutSeconds}s")
+            throw ModelRequestException(
+                failure = ModelRequestFailure.Timeout,
+                message = "模型请求超时（${timeoutSeconds} 秒）。可在设置中调大请求超时，或把推理强度设为关闭后重试。",
+                cause = error,
+            )
+        } catch (error: IOException) {
+            PlatformLog.w(TAG, "chatCompletion network failure: ${error.message?.take(200)}")
+            throw ModelRequestException(
+                failure = ModelRequestFailure.Network,
+                message = "无法连接模型服务，请检查网络、接口地址与模型配置。",
+                cause = error,
+            )
+        } catch (error: RetryableException) {
+            PlatformLog.w(TAG, "chatCompletion provider unavailable: ${error.message}")
+            throw ModelRequestException(
+                failure = ModelRequestFailure.ProviderUnavailable,
+                message = "模型服务暂时不可用（${error.message}），请稍后重试。",
+                cause = error,
+            )
+        } catch (error: JsonConvertException) {
+            PlatformLog.w(TAG, "chatCompletion invalid response: ${error.message?.take(200)}")
+            throw ModelRequestException(
+                failure = ModelRequestFailure.InvalidResponse,
+                message = "模型返回内容无法解析，请确认接口地址是 OpenAI 兼容服务。",
+                cause = error,
+            )
         } finally {
             requestDiagnostics?.finish(diagnosticId, usage, status = status)
         }
