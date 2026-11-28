@@ -12,6 +12,7 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class ModelRequestTimeoutTest {
     @Test
@@ -41,7 +42,10 @@ class ModelRequestTimeoutTest {
             assertEquals(60, settings.getModelSettings()["request_timeout_seconds"]?.jsonPrimitive?.int)
 
             settings.saveModelSettings("openai-compatible", "local", baseUrl, requestTimeoutSeconds = 1)
-            assertFailsWith<HttpRequestTimeoutException> { client.chatCompletion(messages) }
+            val timeout = assertFailsWith<ModelRequestException> { client.chatCompletion(messages) }
+            assertEquals(ModelRequestFailure.Timeout, timeout.failure)
+            assertTrue(timeout.cause is HttpRequestTimeoutException, "cause=${timeout.cause}")
+            assertTrue(timeout.message.orEmpty().contains("1 秒"), timeout.message)
 
             settings.saveModelSettings("openai-compatible", "local", baseUrl, requestTimeoutSeconds = 5)
             settings.saveModelSettings("openai-compatible", "local", baseUrl)
