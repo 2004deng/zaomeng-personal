@@ -14,10 +14,14 @@
 | `zaomeng-skill`、官网 `website/`、示例插件 | 有 | 已删除 |
 | 应用内更新 | 检查并下载作者 GitHub Release 的 APK | **已移除**（见下） |
 | 桌面 / iOS / Pages / 旧 Python CI | 有 | 已删除，只保留 Android CI |
-| 版本号 | `2.1.2` / code 11 | `2.1.2-personal` / code 12 |
+| 版本号 | `2.1.2` / code 11 | `2.1.4-personal` / code 15 |
 
 打包进 APK 的提示词资源在 `kmp/app/shared/src/commonMain/composeResources/files/prompts` 与
 `kmp/server/src/androidMain/assets`，两者仍需保持一致；仓库根的 `prompts/` 只是可编辑源目录。
+
+## 小说人物识别
+
+导入 TXT / EPUB 后，已配置模型且开启“导入后立即蒸馏”时，会自动识别主要人物并回填名单；可以手动增删，失败后可点“识别小说人物”重试。识别只使用开头、中间、末尾等位置的有界正文取样，最多建议 12 位人物，不保证覆盖全书所有配角。仅保存到书架时不会自动调用模型。已导入的书卷可在“继续蒸馏”页点击同一入口，从当前正文识别人物。
 
 ## 为什么删掉应用内更新
 

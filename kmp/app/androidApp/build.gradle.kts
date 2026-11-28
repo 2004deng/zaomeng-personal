@@ -30,8 +30,8 @@ android {
         //noinspection OldTargetApi
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         // 个人自用版：每次出包递增 versionCode 才能覆盖安装。
-        versionCode = 14
-        versionName = "2.1.3-personal"
+        versionCode = 15
+        versionName = "2.1.4-personal"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

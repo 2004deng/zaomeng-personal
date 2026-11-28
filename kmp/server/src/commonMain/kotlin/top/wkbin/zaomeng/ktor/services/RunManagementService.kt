@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -12,6 +13,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
+import okio.Path.Companion.toPath
+import top.wkbin.zaomeng.data.api.DiscoverCharactersRequest
+import top.wkbin.zaomeng.data.api.sampleNovelCharacterExcerpt
 import top.wkbin.zaomeng.ktor.models.*
 import top.wkbin.zaomeng.platform.PlatformLog
 import top.wkbin.zaomeng.platform.base64Decode
@@ -142,6 +146,25 @@ class RunManagementService(
             put("created_at", timestamp)
             put("status", manifest["status"]?.jsonPrimitive?.contentOrNull ?: "running")
         }
+    }
+
+    /** Reads the active source without changing the run or its distillation plan. */
+    fun characterDiscoverySource(runId: String): DiscoverCharactersRequest {
+        val runDir = storageService.getRunDirectory(runId)
+        val manifest = storageService.readRunManifest(runId) ?: throw NoSuchElementException("书卷不存在。")
+        val sources = manifest["novel_sources"] as? JsonArray
+        val sourcePath = (sources?.lastOrNull() as? JsonObject)?.get("source_path")?.jsonPrimitive?.contentOrNull
+            ?: manifest["novel_path"]?.jsonPrimitive?.contentOrNull
+        val source = sourcePath?.takeIf(String::isNotBlank)?.let { it.toPath() }
+            ?: (runDir / "novel.txt")
+        val relative = runCatching { source.normalized().relativeTo(runDir.normalized()).toString() }.getOrNull()
+        require(relative != null && relative != ".." && !relative.startsWith("../")) { "小说源文件路径无效。" }
+        require(storageService.isFile(source)) { "书卷没有可读取的小说正文，请先选择小说文件。" }
+        require(storageService.fileSize(source) <= 24L * 1024 * 1024) { "小说正文过大，请选择较小的书段。" }
+        return DiscoverCharactersRequest(
+            novelName = (manifest["novel_name"]?.jsonPrimitive?.contentOrNull ?: source.name).take(240),
+            excerpt = sampleNovelCharacterExcerpt(storageService.readText(source)),
+        )
     }
 
     /**

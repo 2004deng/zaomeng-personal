@@ -42,6 +42,7 @@ import io.github.suqi8.coui.kmp.overlay.OverlayListPopup
 import io.github.suqi8.coui.kmp.theme.COUITheme
 import org.koin.compose.koinInject
 import top.wkbin.zaomeng.data.api.RedistillSegmentDto
+import top.wkbin.zaomeng.feature.importbook.NovelCharacterDiscovery
 import top.wkbin.zaomeng.platform.DistillationForeground
 import top.wkbin.zaomeng.platform.formatOneDecimal
 import top.wkbin.zaomeng.platform.rememberDocumentPicker
@@ -147,8 +148,15 @@ fun RedistillScreen(
                         singleLine = false,
                         minLines = 2,
                     )
+                    NovelCharacterDiscovery(
+                        busy = state.discoveringCharacters,
+                        error = state.characterDiscoveryError,
+                        message = state.characterDiscoveryMessage,
+                        enabled = !state.submitting && !state.readingFile,
+                        onDiscover = viewModel::discoverCharacters,
+                    )
                     Text(
-                        "可新增人物，用逗号、顿号或换行分隔。",
+                        "可从当前正文识别人物，也可手动增删，用逗号、顿号或换行分隔。",
                         style = COUITheme.textStyles.bodyXS,
                         color = COUITheme.colorScheme.labelSecondary,
                     )
@@ -188,6 +196,7 @@ fun RedistillScreen(
                                     text = "移除",
                                     onClick = viewModel::clearFile,
                                     minWidth = 0.dp,
+                                    enabled = !state.readingFile && !state.submitting,
                                     colors = ButtonDefaults.textButtonColors(textColor = COUITheme.colorScheme.error),
                                 )
                             }
@@ -261,7 +270,7 @@ fun RedistillScreen(
                 Button(
                     onClick = ::requestRedistill,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.submitting,
+                    enabled = !state.submitting && !state.readingFile && !state.discoveringCharacters,
                     colors = ButtonDefaults.buttonColorsPrimary(),
                 ) {
                     if (state.submitting) CircularProgressIndicator(modifier = Modifier.size(20.dp), size = 20.dp, strokeWidth = 2.dp)

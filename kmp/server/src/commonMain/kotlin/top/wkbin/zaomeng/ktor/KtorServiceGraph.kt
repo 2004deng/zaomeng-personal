@@ -20,6 +20,14 @@ class KtorServiceGraph(platform: ServerPlatform) {
     val modelApiKeys = ModelApiKeyService(platform.secureStore())
     val promptLoader = PromptLoader(platform.promptSource)
     val llm = LlmClient(modelApiKeys, storage, requestDiagnostics = modelRequests)
+    val characterDiscovery = CharacterDiscoveryService { messages ->
+        llm.chatCompletion(
+            messages = messages,
+            temperature = 0.1,
+            maxTokens = 1_200,
+            requireJsonObject = true,
+        ).choices.firstOrNull()?.message?.content.orEmpty()
+    }
     val worldMemory = WorldMemoryService(storage)
     val originalKnowledge = OriginalKnowledgeService(storage)
     val plugins = PluginService(storage, top.wkbin.zaomeng.plugins.builtin.BuiltinPlugins.all)

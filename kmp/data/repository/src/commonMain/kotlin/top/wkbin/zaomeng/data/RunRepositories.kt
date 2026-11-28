@@ -11,6 +11,7 @@ import top.wkbin.zaomeng.data.api.CreateRunRequest
 import top.wkbin.zaomeng.data.api.CrossoverParticipantRequest
 import top.wkbin.zaomeng.data.api.DeleteRunResponse
 import top.wkbin.zaomeng.data.api.DeleteStatusDto
+import top.wkbin.zaomeng.data.api.DiscoverCharactersRequest
 import top.wkbin.zaomeng.data.api.EstimateSamplingRequest
 import top.wkbin.zaomeng.data.api.ExportedRunPackage
 import top.wkbin.zaomeng.data.api.ImportRunPackageRequest
@@ -52,6 +53,16 @@ class RunRepositoryImpl(
 ) : RunRepository, DistillPlanningGateway {
     override suspend fun listRuns(): List<RunManifestDto> = repositoryRequest {
         ktorRuns.list().items
+    }
+
+    override suspend fun discoverCharacters(filename: String, excerpt: String): List<String> = repositoryRequest {
+        ktorRunManagement.discoverCharacters(
+            DiscoverCharactersRequest(filename.take(240), excerpt),
+        ).characters
+    }
+
+    override suspend fun discoverRunCharacters(runId: String): List<String> = repositoryRequest {
+        ktorRunManagement.discoverRunCharacters(runId).characters
     }
 
     override suspend fun createNovel(

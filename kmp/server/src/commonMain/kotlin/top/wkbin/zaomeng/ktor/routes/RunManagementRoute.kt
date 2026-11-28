@@ -9,6 +9,7 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import top.wkbin.zaomeng.data.api.CreateRunRequest
+import top.wkbin.zaomeng.data.api.DiscoverCharactersRequest
 import top.wkbin.zaomeng.data.api.ImportRunPackageRequest
 import top.wkbin.zaomeng.data.api.SillyTavernPreviewRequest
 import top.wkbin.zaomeng.ktor.services.*
@@ -19,7 +20,19 @@ import top.wkbin.zaomeng.platform.platformIoDispatcher
  *
  * Phase 4: 写入 API 和状态管理
  */
-fun Route.runManagementRoutes(runService: RunManagementService, packageService: RunPackageService) {
+fun Route.runManagementRoutes(
+    runService: RunManagementService,
+    packageService: RunPackageService,
+    characterDiscovery: CharacterDiscoveryService? = null,
+) {
+    post("/api/web/runs/characters/discover") {
+        discoverCharacters(call, characterDiscovery) { call.receive() }
+    }
+    post("/api/web/runs/{run_id}/characters/discover") {
+        discoverCharacters(call, characterDiscovery) {
+            runService.characterDiscoverySource(call.parameters["run_id"].orEmpty())
+        }
+    }
     worldBookRoutes(packageService.sillyTavern)
     post("/api/web/runs/import/sillytavern/preview") {
         try {
@@ -95,6 +108,31 @@ fun Route.runManagementRoutes(runService: RunManagementService, packageService: 
         } catch (e: Exception) {
             call.respondError(HttpStatusCode.InternalServerError, "Failed to delete run")
         }
+    }
+}
+
+private suspend fun discoverCharacters(
+    call: ApplicationCall,
+    service: CharacterDiscoveryService?,
+    request: suspend () -> DiscoverCharactersRequest,
+) {
+    if (service == null) {
+        call.respondError(HttpStatusCode.ServiceUnavailable, "人物识别暂不可用。")
+        return
+    }
+    try {
+        val result = withContext(platformIoDispatcher) { service.discover(request()) }
+        call.respond(result)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: NoSuchElementException) {
+        call.respondError(HttpStatusCode.NotFound, error.message ?: "书卷不存在。")
+    } catch (error: IllegalArgumentException) {
+        call.respondError(HttpStatusCode.BadRequest, error.message ?: "小说正文无效。")
+    } catch (error: IllegalStateException) {
+        call.respondError(HttpStatusCode.BadGateway, error.message ?: "人物识别失败，请重试或手动填写。")
+    } catch (_: Exception) {
+        call.respondError(HttpStatusCode.BadGateway, "无法识别人物，请检查模型配置后重试，或手动填写人物名。")
     }
 }
 

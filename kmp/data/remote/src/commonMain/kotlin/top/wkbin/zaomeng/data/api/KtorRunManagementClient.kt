@@ -17,6 +17,14 @@ class KtorRunManagementClient(
     private val http: KtorHttpClientProvider,
     private val endpointProvider: BackendEndpointProvider,
 ) {
+    suspend fun discoverCharacters(payload: DiscoverCharactersRequest): DiscoveredCharactersDto = request { endpoint ->
+        http.client.post(url(endpoint, "/api/web/runs/characters/discover")) { setBody(payload) }
+    }.body()
+
+    suspend fun discoverRunCharacters(runId: String): DiscoveredCharactersDto = request { endpoint ->
+        http.client.post(url(endpoint, "/api/web/runs/${runId.encodeURLPathPart()}/characters/discover"))
+    }.body()
+
     suspend fun create(payload: CreateRunRequest): RunManifestDto = request { endpoint ->
         http.client.post(url(endpoint, "/api/web/runs")) {
             setBody(payload)

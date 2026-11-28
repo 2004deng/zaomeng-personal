@@ -73,6 +73,10 @@ class ImportDocumentLoaderTest {
         val zip = storeZip(
             listOf(
                 "mimetype" to "application/epub+zip".encodeToByteArray(),
+                "META-INF/container.xml" to
+                    """<container><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>""".encodeToByteArray(),
+                "OEBPS/content.opf" to
+                    """<package><manifest><item id="chapter" href="chapter-1.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>""".encodeToByteArray(),
                 "OEBPS/chapter-1.xhtml" to
                     "<html><body><h1>第一章</h1><p>宝玉来了。</p></body></html>".encodeToByteArray(),
             ),
@@ -87,6 +91,7 @@ class ImportDocumentLoaderTest {
         assertEquals("红楼梦.txt", document.fileName)
         assertEquals("EPUB", document.sourceEncoding)
         assertEquals("第一章\n宝玉来了。", document.bytes.decodeToString())
+        assertEquals("第一章\n宝玉来了。", document.characterExcerpt)
     }
 
     @Test

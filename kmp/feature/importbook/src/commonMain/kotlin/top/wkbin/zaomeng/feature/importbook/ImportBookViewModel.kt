@@ -40,6 +40,9 @@ data class ImportBookUiState(
     val charCount: Int = 0,
     val sentenceCount: Int = 0,
     val characters: String = "",
+    val discoveringCharacters: Boolean = false,
+    val characterDiscoveryError: String = "",
+    val characterDiscoveryMessage: String = "",
     val autoDistill: Boolean = true,
     val maxSentences: String = "120",
     val maxChars: String = "50000",
@@ -72,16 +75,22 @@ class ImportBookViewModel(
     private var modelConfigurationJob: Job? = null
     private var samplingEstimateJob: Job? = null
     private var samplingEstimateRequestId = 0L
+    private var characterDiscoveryJob: Job? = null
+    private var characterDiscoveryRequestId = 0L
+    private var characterDiscoveryAttempted = false
+    private var characterExcerpt = ""
+    private var preferencesLoaded = false
 
     init {
         viewModelScope.launch {
             val preferences = appRuntime.preferences.first()
             mutableState.update {
                 it.copy(
-                    characters = preferences.defaultCharacters,
                     autoDistill = preferences.autoDistill,
                 )
             }
+            preferencesLoaded = true
+            maybeDiscoverCharacters()
         }
         refreshModelConfiguration()
     }
@@ -99,11 +108,13 @@ class ImportBookViewModel(
         fileLoadJob?.cancel()
         previewJob?.cancel()
         samplingEstimateJob?.cancel()
+        cancelCharacterDiscovery()
+        characterExcerpt = ""
+        characterDiscoveryAttempted = false
         selectedBytes = null
         selectedKind = null
         mutableState.update { current ->
             ImportBookUiState(
-                characters = current.characters,
                 autoDistill = current.autoDistill,
                 maxSentences = current.maxSentences,
                 maxChars = current.maxChars,
@@ -117,6 +128,7 @@ class ImportBookViewModel(
 
     fun loadDocument(name: String, bytes: ByteArray, kind: ImportDocumentKind) {
         fileLoadJob?.cancel()
+        cancelCharacterDiscovery()
         fileLoadJob = viewModelScope.launch {
             mutableState.update { it.copy(readingFile = true, error = "") }
             try {
@@ -154,11 +166,17 @@ class ImportBookViewModel(
     private fun selectDocument(document: ImportDocument) {
         selectedBytes = document.bytes
         selectedKind = document.kind
+        characterExcerpt = document.characterExcerpt
+        characterDiscoveryAttempted = false
         previewJob?.cancel()
         samplingEstimateJob?.cancel()
         mutableState.update {
             it.copy(
                 fileName = document.fileName,
+                characters = "",
+                discoveringCharacters = false,
+                characterDiscoveryError = "",
+                characterDiscoveryMessage = "",
                 fileSize = document.bytes.size.toLong(),
                 packageFile = document.kind != ImportDocumentKind.NovelText,
                 documentKind = document.kind,
@@ -181,6 +199,7 @@ class ImportBookViewModel(
             )
         }
         scheduleSamplingEstimate()
+        maybeDiscoverCharacters()
     }
 
     fun selectWorldBookTarget(runId: String) {
@@ -228,9 +247,13 @@ class ImportBookViewModel(
     }
 
     fun updateCharacters(value: String) {
+        cancelCharacterDiscovery()
+        characterDiscoveryAttempted = true
         mutableState.update {
             it.copy(
                 characters = value,
+                characterDiscoveryError = "",
+                characterDiscoveryMessage = "",
                 samplingPlan = null,
                 samplingEstimateError = "",
                 error = "",
@@ -238,7 +261,77 @@ class ImportBookViewModel(
         }
         scheduleSamplingEstimate()
     }
-    fun updateAutoDistill(value: Boolean) = mutableState.update { it.copy(autoDistill = value, error = "") }
+    fun updateAutoDistill(value: Boolean) {
+        mutableState.update { it.copy(autoDistill = value, error = "") }
+        if (value) {
+            maybeDiscoverCharacters()
+        } else {
+            // 关闭开关会取消在途的自动识别：名单仍为空时允许再次开启后重新尝试，
+            // 否则“尝试过”标记会永久阻止自动识别。
+            val retryAutoAfterCancel = state.value.discoveringCharacters && state.value.characters.isBlank()
+            cancelCharacterDiscovery()
+            if (retryAutoAfterCancel) characterDiscoveryAttempted = false
+        }
+    }
+
+    private fun cancelCharacterDiscovery() {
+        characterDiscoveryRequestId++
+        characterDiscoveryJob?.cancel()
+        mutableState.update { it.copy(discoveringCharacters = false) }
+    }
+
+    private fun maybeDiscoverCharacters() {
+        if (!preferencesLoaded) return
+        val current = state.value
+        if (!characterDiscoveryAttempted && current.autoDistill && current.modelConfigured == true &&
+            current.characters.isBlank() && selectedKind == ImportDocumentKind.NovelText && !current.readingFile
+        ) discoverCharacters()
+    }
+
+    fun discoverCharacters() {
+        val snapshot = state.value
+        if (snapshot.submitting || snapshot.readingFile || snapshot.discoveringCharacters ||
+            selectedKind != ImportDocumentKind.NovelText
+        ) return
+        if (snapshot.modelConfigured != true) {
+            mutableState.update { it.copy(characterDiscoveryError = "请先配置模型，或手动填写人物名。") }
+            return
+        }
+        val excerpt = characterExcerpt
+        if (excerpt.isBlank()) return
+        cancelCharacterDiscovery()
+        characterDiscoveryAttempted = true
+        val requestId = characterDiscoveryRequestId
+        mutableState.update {
+            it.copy(discoveringCharacters = true, characterDiscoveryError = "", characterDiscoveryMessage = "", error = "")
+        }
+        characterDiscoveryJob = viewModelScope.launch {
+            try {
+                val characters = runs.discoverCharacters(snapshot.fileName, excerpt)
+                ensureActive()
+                if (requestId != characterDiscoveryRequestId) return@launch
+                check(characters.isNotEmpty()) { "未识别到人物，请重试或手动填写。" }
+                mutableState.update {
+                    it.copy(
+                        characters = characters.joinToString("、"),
+                        discoveringCharacters = false,
+                        characterDiscoveryMessage = "已识别 ${characters.size} 位人物，可继续删改。",
+                    )
+                }
+                scheduleSamplingEstimate()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (requestId != characterDiscoveryRequestId) return@launch
+                mutableState.update {
+                    it.copy(
+                        discoveringCharacters = false,
+                        characterDiscoveryError = error.message ?: "人物识别失败，请重试或手动填写。",
+                    )
+                }
+            }
+        }
+    }
     fun updateMaxSentences(value: String) {
         mutableState.update {
             it.copy(
@@ -284,6 +377,7 @@ class ImportBookViewModel(
                         modelConfigurationError = "",
                     )
                 }
+                maybeDiscoverCharacters()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
@@ -299,7 +393,7 @@ class ImportBookViewModel(
 
     fun submit() {
         val current = state.value
-        if (current.submitting || current.readingFile) return
+        if (current.submitting || current.readingFile || current.discoveringCharacters) return
         val bytes = selectedBytes
         if (bytes == null || current.fileName.isBlank()) {
             mutableState.update { it.copy(error = "请先选择一个文件。") }

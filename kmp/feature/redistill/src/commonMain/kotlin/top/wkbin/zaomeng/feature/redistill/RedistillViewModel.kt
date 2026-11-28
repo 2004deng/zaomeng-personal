@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,9 @@ data class RedistillUiState(
     val loading: Boolean = true,
     val run: RunManifestDto? = null,
     val characters: String = "",
+    val discoveringCharacters: Boolean = false,
+    val characterDiscoveryError: String = "",
+    val characterDiscoveryMessage: String = "",
     val maxSentences: String = "120",
     val maxChars: String = "50000",
     val fileName: String = "",
@@ -89,6 +93,9 @@ class RedistillViewModel(
     private var fileLoadJob: Job? = null
     private var samplingEstimateJob: Job? = null
     private var samplingEstimateRequestId = 0L
+    private var characterDiscoveryJob: Job? = null
+    private var characterDiscoveryRequestId = 0L
+    private var characterExcerpt = ""
 
     init {
         require(runId.isNotBlank()) { "runId 不能为空。" }
@@ -114,6 +121,7 @@ class RedistillViewModel(
                         recommendationCharacters = characters.toSet(),
                     )
                 }
+                if (characters.isEmpty()) discoverCharacters()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
@@ -126,6 +134,7 @@ class RedistillViewModel(
 
     fun loadDocument(name: String, bytes: ByteArray) {
         fileLoadJob?.cancel()
+        cancelCharacterDiscovery()
         fileLoadJob = viewModelScope.launch {
             mutableState.update { it.copy(readingFile = true, error = "") }
             try {
@@ -183,6 +192,7 @@ class RedistillViewModel(
             return
         }
         selectedBytes = bytes
+        characterExcerpt = document.characterExcerpt
         mutableState.update {
             it.copy(
                 fileName = filename,
@@ -197,9 +207,14 @@ class RedistillViewModel(
             )
         }
         scheduleSamplingEstimate()
+        if (state.value.characters.isBlank()) discoverCharacters()
     }
 
     fun clearFile() {
+        // 取消在途解码：否则解码结束后 selectFile 会把刚移除的来源重新挂回去。
+        fileLoadJob?.cancel()
+        cancelCharacterDiscovery()
+        characterExcerpt = ""
         selectedBytes = null
         mutableState.update {
             it.copy(
@@ -207,6 +222,7 @@ class RedistillViewModel(
                 fileSize = 0,
                 sourceCharCount = 0,
                 sourceSentenceCount = 0,
+                readingFile = false,
                 samplingPlan = null,
                 samplingEstimateError = "",
                 error = "",
@@ -216,11 +232,18 @@ class RedistillViewModel(
     }
 
     fun updateCharacters(value: String) {
+        cancelCharacterDiscovery()
+        applyCharacters(value)
+    }
+
+    private fun applyCharacters(value: String) {
         val available = parseRedistillCharacters(value).toSet()
         mutableState.update {
             val retained = it.recommendationCharacters.intersect(available)
             it.copy(
                 characters = value,
+                characterDiscoveryError = "",
+                characterDiscoveryMessage = "",
                 recommendationCharacters = if (retained.isEmpty()) available else retained,
                 suggestions = it.suggestions.filter { group -> group.character in available },
                 selectedSegmentKeys = it.selectedSegmentKeys.filterTo(mutableSetOf()) { key ->
@@ -232,6 +255,44 @@ class RedistillViewModel(
         }
         scheduleSamplingEstimate()
     }
+    private fun cancelCharacterDiscovery() {
+        characterDiscoveryRequestId++
+        characterDiscoveryJob?.cancel()
+        mutableState.update { it.copy(discoveringCharacters = false, characterDiscoveryError = "", characterDiscoveryMessage = "") }
+    }
+
+    fun discoverCharacters() {
+        val snapshot = state.value
+        if (snapshot.loading || snapshot.submitting || snapshot.readingFile || snapshot.discoveringCharacters) return
+        cancelCharacterDiscovery()
+        val requestId = characterDiscoveryRequestId
+        val excerpt = characterExcerpt
+        mutableState.update { it.copy(discoveringCharacters = true) }
+        characterDiscoveryJob = viewModelScope.launch {
+            try {
+                val characters = if (selectedBytes != null) {
+                    repository.discoverCharacters(snapshot.fileName, excerpt)
+                } else {
+                    repository.discoverRunCharacters(runId)
+                }
+                ensureActive()
+                if (requestId != characterDiscoveryRequestId) return@launch
+                check(characters.isNotEmpty()) { "未识别到人物，请重试或手动填写。" }
+                applyCharacters(characters.joinToString("、"))
+                mutableState.update {
+                    it.copy(discoveringCharacters = false, characterDiscoveryMessage = "已识别 ${characters.size} 位人物，可继续删改。")
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (requestId != characterDiscoveryRequestId) return@launch
+                mutableState.update {
+                    it.copy(discoveringCharacters = false, characterDiscoveryError = error.message ?: "人物识别失败，请重试或手动填写。")
+                }
+            }
+        }
+    }
+
     fun updateMaxSentences(value: String) {
         mutableState.update { it.copy(maxSentences = value.filter(Char::isDigit), samplingPlan = null, error = "") }
         scheduleSamplingEstimate()
@@ -291,6 +352,8 @@ class RedistillViewModel(
     }
 
     fun selectSegment(character: String, segmentId: String) {
+        cancelCharacterDiscovery()
+        characterExcerpt = ""
         selectedBytes = null
         mutableState.update {
             val key = redistillSegmentKey(character, segmentId)
@@ -392,7 +455,7 @@ class RedistillViewModel(
 
     fun submit() {
         val snapshot = state.value
-        if (snapshot.submitting) return
+        if (snapshot.submitting || snapshot.readingFile || snapshot.discoveringCharacters) return
         val characters = parseRedistillCharacters(snapshot.characters)
         if (characters.isEmpty()) {
             mutableState.update { it.copy(error = "至少保留一位要蒸馏的人物。") }

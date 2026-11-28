@@ -26,6 +26,9 @@ import top.wkbin.zaomeng.data.api.WorldMemoryDto
 interface RunRepository {
     suspend fun listRuns(): List<RunManifestDto>
 
+    suspend fun discoverCharacters(filename: String, excerpt: String): List<String>
+    suspend fun discoverRunCharacters(runId: String): List<String>
+
     suspend fun createNovel(
         filename: String,
         bytes: ByteArray,

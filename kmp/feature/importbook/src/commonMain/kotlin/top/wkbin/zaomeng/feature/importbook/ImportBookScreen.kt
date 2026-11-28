@@ -142,7 +142,7 @@ fun ImportBookScreen(
     val hasDocument = state.fileName.isNotBlank()
     val worldBook = state.documentKind == ImportDocumentKind.WorldBook
     val needsPreview = state.documentKind == ImportDocumentKind.CharacterCard || worldBook
-    val canSubmit = hasDocument && !state.submitting && !state.readingFile &&
+    val canSubmit = hasDocument && !state.submitting && !state.readingFile && !state.discoveringCharacters &&
         (state.packageFile || !state.autoDistill || state.modelConfigured == true) &&
         (!needsPreview || (!state.previewBusy && state.sillyTavernPreview != null)) &&
         (!worldBook || state.targetRunId.isNotBlank())
@@ -392,10 +392,20 @@ fun ImportBookScreen(
                             minLines = 2,
                         )
                         Text(
-                            "可用逗号、分号或换行分隔；会记住到下次导入。",
+                            "可用逗号、顿号、分号或换行分隔；识别结果可以继续删改。",
                             style = COUITheme.textStyles.bodyXS,
                             color = COUITheme.colorScheme.labelSecondary,
                         )
+                        NovelCharacterDiscovery(
+                            busy = state.discoveringCharacters,
+                            error = state.characterDiscoveryError,
+                            message = state.characterDiscoveryMessage,
+                            enabled = !state.submitting && !state.readingFile && state.modelConfigured == true,
+                            onDiscover = viewModel::discoverCharacters,
+                        )
+                        if (state.modelConfigured != true && !state.autoDistill) {
+                            Text("配置模型后可识别人物，也可直接手动填写。", style = COUITheme.textStyles.bodyXS)
+                        }
                     }
                 }
                 item {

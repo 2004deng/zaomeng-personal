@@ -126,7 +126,7 @@ class LocalBackendController(
                     diagnosticsRoute(storage, services.diagnostics)
                     dialogueRoutes(services.dialogue, storage)
                     sessionManagementRoutes(services.sessionManagement)
-                    runManagementRoutes(services.runManagement, services.runPackages)
+                    runManagementRoutes(services.runManagement, services.runPackages, services.characterDiscovery)
                     settingsManagementRoutes(services.settingsManagement)
                     dialogueStreamRoutes(services.dialogueStream)
                     suggestionsRoutes(services.suggestions)

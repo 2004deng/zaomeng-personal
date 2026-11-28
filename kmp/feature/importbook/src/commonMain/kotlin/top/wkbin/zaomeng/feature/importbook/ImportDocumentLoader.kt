@@ -1,5 +1,6 @@
 package top.wkbin.zaomeng.feature.importbook
 
+import top.wkbin.zaomeng.data.api.sampleNovelCharacterExcerpt
 import top.wkbin.zaomeng.platform.ZipReadLimits
 import top.wkbin.zaomeng.platform.decodeGb18030Strict
 import top.wkbin.zaomeng.platform.readZipFileEntries
@@ -18,6 +19,7 @@ data class ImportDocument(
     val sourceEncoding: String = "",
     val charCount: Int = 0,
     val sentenceCount: Int = 0,
+    val characterExcerpt: String = "",
 )
 
 data class TextStatistics(
@@ -132,6 +134,7 @@ object ImportDocumentLoader {
             sourceEncoding = encoding,
             charCount = statistics.charCount,
             sentenceCount = statistics.sentenceCount,
+            characterExcerpt = sampleNovelCharacterExcerpt(text),
         )
     }
 
