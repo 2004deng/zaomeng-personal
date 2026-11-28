@@ -1,7 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-val hostOs = System.getProperty("os.name").lowercase()
-val isMacHost = hostOs == "mac os x" || hostOs == "macos" || hostOs == "darwin"
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -14,11 +12,6 @@ plugins {
 // 书卷域：书架、在线书库、导入、继续蒸馏、原文知识与书卷详情。
 kotlin {
     jvm()
-
-    if (isMacHost) {
-        iosArm64()
-        iosSimulatorArm64()
-    }
 
     android {
         namespace = "top.wkbin.zaomeng.feature.books"

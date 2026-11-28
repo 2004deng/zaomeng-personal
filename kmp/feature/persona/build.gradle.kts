@@ -1,7 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-val hostOs = System.getProperty("os.name").lowercase()
-val isMacHost = hostOs == "mac os x" || hostOs == "macos" || hostOs == "darwin"
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -14,11 +12,6 @@ plugins {
 // 人物域：人物档案、人物关系与可复用卡片。
 kotlin {
     jvm()
-
-    if (isMacHost) {
-        iosArm64()
-        iosSimulatorArm64()
-    }
 
     android {
         namespace = "top.wkbin.zaomeng.feature.persona"

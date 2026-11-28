@@ -2,8 +2,6 @@
 // 由 androidApp 消费并复用 server 的内嵌后端；jvm 目标仅用于 jvmTest 回归。
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-val hostOs = System.getProperty("os.name").lowercase()
-val isMacHost = hostOs == "mac os x" || hostOs == "macos" || hostOs == "darwin"
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -20,18 +18,6 @@ compose.resources {
 
 kotlin {
     jvm()
-
-    // Apple target 只能在 macOS 主机上编译；Windows/CI(Linux) 自动跳过，保持本机构建可跑。
-    if (isMacHost) {
-        listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
-            iosTarget.binaries.framework {
-                baseName = "Shared"
-                isStatic = true
-                // 导出 ViewModel API，Swift 可直接访问（不带 Lifecycle_viewmodel 前缀）
-                export(libs.compose.lifecycle.viewmodel)
-            }
-        }
-    }
 
     android {
         namespace = "top.wkbin.zaomeng.app.shared"
@@ -96,14 +82,6 @@ kotlin {
             implementation(libs.skiko.awt)
             // viewModelScope 依赖 Dispatchers.Main（桌面端由 coroutines-swing 提供）
             implementation(libs.kotlinx.coroutines.swing)
-        }
-        if (isMacHost) {
-            iosMain {
-                dependencies {
-                    implementation(project(":server"))
-                    implementation(libs.kitearchive)
-                }
-            }
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

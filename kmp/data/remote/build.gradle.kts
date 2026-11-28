@@ -1,7 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-val hostOs = System.getProperty("os.name").lowercase()
-val isMacHost = hostOs == "mac os x" || hostOs == "macos" || hostOs == "darwin"
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -24,11 +22,6 @@ kotlin {
     }
     jvm()
 
-    if (isMacHost) {
-        iosArm64()
-        iosSimulatorArm64()
-    }
-
     sourceSets {
         commonMain.dependencies {
             api(project(":core:contracts"))
@@ -49,11 +42,6 @@ kotlin {
         jvmMain.dependencies {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.okhttp)
-        }
-        if (isMacHost) {
-            iosMain.dependencies {
-                implementation(libs.ktor.client.darwin)
-            }
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
